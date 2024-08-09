@@ -156,7 +156,7 @@ _MASK_ENABLE = [
         0x0004     # OVF (Math Over-flow) 
 ]
 
-i2c = I2C(0, sda = Pin(0), scl = Pin(1), freq = 100000)
+i2c = I2C(0, sda = Pin(0), scl = Pin(1), freq = 1000000)
 utime.sleep_ms(10)
 
 # All global variables used in the library
@@ -207,6 +207,7 @@ def init_ina236 (address, mode, vshct, vbusct, avg, adcrange):
 
 # Reset the INA236 registers
 def reset_ina236(address):
+    global Address
     Address = address
     _write_register(Config_Reg, RST)
 
@@ -214,36 +215,41 @@ def reset_ina236(address):
 def calibrate_ina236():
     global Adcrange, Current_lsb
     
-    current_lsb_min = 10 / (math.pow(2, 15))
-    Current_lsb = (current_lsb_min * 6) + 0.0018
+    Current_lsb_min = 10 / (math.pow(2, 15))
+    Current_lsb = math.trunc(Current_lsb_min) + 0.0018
     SHUNT_CAL = 0.00512 / (Current_lsb * 0.008)
     SHUNT_CAL = math.trunc(SHUNT_CAL)
-    if (Adcrange == ADCRANGE_2): SHUNT_CAL = SHUNT_CAL / 4
+    if (Adcrange == ADCRANGE_2): SHUNT_CAL = math.trunc(SHUNT_CAL / 4)
     _write_register(Calibration_Reg, SHUNT_CAL)
 
 # Read the current across the Shunt resistor
 def read_current():
     global Current_lsb
     CURRENT = _read_register(Current_Reg)
-    return math.round((Current_lsb * CURRENT), 4)
+    _current = (Current_lsb * CURRENT)
+    return _current
 
 # Read the power across the Shunt resistor
 def read_power():
     global Current_lsb
     POWER = _read_register(Power_Reg)
-    return math.round(math.fabs((32 * Current_lsb * POWER)), 4)
+    _power = math.fabs((32 * Current_lsb * POWER))
+    return _power
 
 # Read the voltage across the Shunt resistor
 def read_shunt_voltage():
+    global Lsb
     value_raw = _read_register(Shunt_Volt_Reg)
     value_comp = ~value_raw
     value = value_comp + 1
-    return math.round(math.fabs(value * Lsb), 4)
+    _value = math.fabs(value * Lsb)
+    return _value
    
 # Read the bus voltage
 def read_bus_voltage():
     value = _read_register(Bus_Volt_Reg)
-    return math.round((value * _LSB[2]), 4)
+    _value = (value * _LSB[2])
+    return _value
 
 # Set the alert register
 def mask_enable(val=1):
